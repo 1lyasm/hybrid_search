@@ -1,1 +1,2 @@
-langchain-openai
+llama-index-embeddings-huggingface
+llama-index-readers-file
