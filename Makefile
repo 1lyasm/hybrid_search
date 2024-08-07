@@ -1,2 +1,2 @@
-all:
-	python3 source/main.py
+index:
+	python3 source/index.py
