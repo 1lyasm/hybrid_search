@@ -42,8 +42,6 @@ def main():
         )
     )
 
-    print(do_semantic_search(query_engine, "Shakespeare"))
-
 
 if __name__ == "__main__":
     main()
