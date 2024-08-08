@@ -14,12 +14,7 @@ def main():
     index = llama_index.core.VectorStoreIndex.from_documents(
         documents, show_progress=True
     )
-    storage_context = (
-        llama_index.core.storage.StorageContext.from_defaults(
-            vector_store=index
-        )
-    )
-    storage_context.persist()
+    index.storage_context.persist()
 
 
 if __name__ == "__main__":
