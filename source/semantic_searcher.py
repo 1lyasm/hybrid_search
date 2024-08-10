@@ -28,8 +28,8 @@ class SemanticSearcher:
             )
         )
 
-    def search(self, query):
-        return self.query_engine.query(query)
+    def search(self, query_string):
+        return self.query_engine.query(query_string)
 
 
 def main():
@@ -43,7 +43,8 @@ def main():
     arguments = parser.parse_args()
 
     searcher = SemanticSearcher()
-    searcher.search(arguments.query_string)
+    search_result = searcher.search(arguments.query_string)
+    print(type(search_result))
 
 
 if __name__ == "__main__":
