@@ -1,6 +1,8 @@
-keyword_searcher:
-	python3 source/keyword_searcher.py -q Shakespeare
-semantic_searcher:
-	python3 source/semantic_searcher.py -q Shakespeare
-semantic_search_indexer:
-	python3 source/semantic_search_indexer.py
+hybrid_search:
+	python3 source/hybrid_search.py -q Shakespeare
+keyword_search:
+	python3 source/keyword_search.py -q Shakespeare
+semantic_search:
+	python3 source/semantic_search.py -q Shakespeare
+semantic_search_index:
+	python3 source/semantic_search_index.py
