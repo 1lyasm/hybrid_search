@@ -1,3 +1,4 @@
 llama-index-embeddings-huggingface
 llama-index-readers-file
 llama-index-llms-huggingface
+Whoosh
