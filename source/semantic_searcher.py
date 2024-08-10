@@ -44,7 +44,6 @@ def main():
 
     searcher = SemanticSearcher()
     search_result = searcher.search(arguments.query_string)
-    print(type(search_result))
 
 
 if __name__ == "__main__":
