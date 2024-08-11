@@ -148,10 +148,34 @@ def main():
                     + document.page_content
                     + """
                     Your answers should be in this format (without any extra text):
-                        {'score': <your_score> (string), 'reasoning': <your reasoning> (string)}"""
+                        {"score": "your score here ...", "reasoning": "your reasoning here ..." (string)}"""
                 )
                 llm_answer = model.invoke(prompt)
-                llm_answer_dictionary = json.load(llm_answer)
+                termcolor.cprint(
+                    f"LLM answer: {llm_answer}", "blue"
+                )
+                could_decode_json = False
+                while not could_decode_json:
+                    try:
+                        llm_answer_dictionary = json.loads(
+                            llm_answer
+                        )
+                        could_decode_json = True
+                    except json.decoder.JSONDecodeError as error:
+                        termcolor.cprint(
+                            "Could not decode JSON", "magenta"
+                        )
+                        prompt = (
+                            """Could not decode JSON, change this to a decodable JSON.
+                                    Do not include anything else in your answer than JSON):
+                            """
+                            + llm_answer
+                        )
+                        llm_answer = model.invoke(prompt)
+                        termcolor.cprint(
+                            f"LLM answer: {llm_answer}", "blue"
+                        )
+
                 output_dictionary["evaluation"] = (
                     llm_answer_dictionary
                 )
