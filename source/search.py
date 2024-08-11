@@ -10,19 +10,29 @@ from langchain_community.document_loaders.csv_loader import (
     CSVLoader,
 )
 from langchain_community.vectorstores import FAISS
+from langchain.storage import LocalFileStore
 
 
 class Searcher:
     def __init__(self):
-        embedding = langchain_huggingface.HuggingFaceEmbeddings(
+        persist_directory = os.path.join(".", "storage")
+        embeddings = langchain_huggingface.HuggingFaceEmbeddings(
             show_progress=True
         )
-        documents = CSVLoader(
-            os.path.join(".", "data", "imdb_dataset.csv")
-        ).load()
-        self.vectorstore = FAISS.from_documents(
-            documents, embedding
-        )
+        if os.path.exists(persist_directory):
+            self.vectorstore = FAISS.load_local(
+                persist_directory,
+                embeddings,
+            )
+        else:
+            documents = CSVLoader(
+                os.path.join(".", "data", "imdb_dataset.csv")
+            ).load()
+            self.vectorstore = FAISS.from_documents(
+                documents,
+                embeddings,
+            )
+            self.vectorstore.save_local(persist_directory)
 
     def semantic_search(self, query_string):
         return self.vectorstore.as_retriever(
