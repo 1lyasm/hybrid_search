@@ -1,4 +1,4 @@
-llama-index-embeddings-huggingface
-llama-index-readers-file
-llama-index-llms-huggingface
-Whoosh
+langchain
+langchain-community
+langchain-huggingface
+faiss-cpu

@@ -1,5 +1,5 @@
-hybrid_search:
-	python3 source/hybrid_search.py -q Shakespeare
+search:
+	python3 source/search.py -q Shakespeare
 keyword_search:
 	python3 source/keyword_search.py -q Shakespeare
 semantic_search:
