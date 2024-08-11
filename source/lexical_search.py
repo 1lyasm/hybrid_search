@@ -7,11 +7,11 @@ import pandas
 import os
 
 
-class KeywordSearcher:
+class LexicalSearcher:
     def __init__(self):
         documents = (
             pandas.read_csv("data/imdb_dataset.csv")
-            .drop("sentiment", axis=1)
+            .drop("label", axis=1)
             .to_numpy()
             .reshape([-1])
         )
@@ -55,7 +55,7 @@ def main():
     )
     arguments = parser.parse_args()
 
-    searcher = KeywordSearcher()
+    searcher = LexicalSearcher()
     search_result = searcher.search(arguments.query_string)
     searcher.close()
 
