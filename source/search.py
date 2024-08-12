@@ -23,29 +23,17 @@ from langchain_ollama import OllamaLLM
 
 
 class Searcher:
-    def __init__(
-        self,
-    ):
-        documents = CSVLoader(
-            os.path.join(
-                ".",
-                "data",
-                "imdb_dataset.csv",
-            )
-        ).load()
+    def __init__(self, arguments):
+        documents = CSVLoader(arguments.dataset_path).load()
 
         self.bm25_retriever = BM25Retriever.from_documents(
             documents
         )
 
         embeddings = HuggingFaceEmbeddings(show_progress=True)
-        persist_directory = os.path.join(
-            ".",
-            "storage",
-        )
-        if os.path.exists(persist_directory):
+        if os.path.exists(arguments.persist_directory):
             self.faiss_vectorstore = FAISS.load_local(
-                persist_directory,
+                arguments.persist_directory,
                 embeddings,
                 allow_dangerous_deserialization=True,
             )
@@ -54,7 +42,9 @@ class Searcher:
                 documents,
                 embeddings,
             )
-            self.faiss_vectorstore.save_local(persist_directory)
+            self.faiss_vectorstore.save_local(
+                arguments.persist_directory
+            )
         self.faiss_retriever = (
             self.faiss_vectorstore.as_retriever()
         )
@@ -100,23 +90,40 @@ def main():
         help="Query string",
         required=True,
     )
+    parser.add_argument(
+        "-d",
+        "--dataset_path",
+        help="Path of the input dataset (CSV file)",
+        default=os.path.join("data", "imdb_dataset.csv"),
+    )
+    parser.add_argument(
+        "-p",
+        "--persist_directory",
+        help="Path of the persist directory",
+        default=os.path.join("storage"),
+    )
+    parser.add_argument(
+        "-o",
+        "--output_directory",
+        help="Path of the output directory",
+        default=os.path.join("output"),
+    )
     arguments = parser.parse_args()
 
-    output_directory = "output"
-    model = OllamaLLM(model="llama3")
+    model = OllamaLLM(model="llama3", temperature=0)
 
-    searcher = Searcher()
+    searcher = Searcher(arguments)
     function_list = [
         searcher.search_lexical,
         searcher.search_semantic,
         searcher.search_hybrid,
     ]
-    if not os.path.exists(output_directory):
-        os.mkdir(output_directory)
+    if not os.path.exists(arguments.output_directory):
+        os.mkdir(arguments.output_directory)
     for search_function in function_list:
         with open(
             os.path.join(
-                output_directory,
+                arguments.output_directory,
                 f"{search_function.__name__}.json",
             ),
             "w",
@@ -129,13 +136,7 @@ def main():
             retrieved_documents = search_function(
                 arguments.query_string
             )
-            output_dictionary["retrieved_documents"] = [
-                {
-                    "id": document.metadata["row"],
-                    "text": document.page_content,
-                }
-                for document in retrieved_documents
-            ]
+            output_dictionary["retrieved_documents"] = list()
             for document in retrieved_documents:
                 prompt = (
                     """For the following query and retrieved document pair,
@@ -176,8 +177,13 @@ def main():
                             f"LLM answer: {llm_answer}", "blue"
                         )
 
-                output_dictionary["evaluation"] = (
-                    llm_answer_dictionary
+                new_document = {
+                    "id": document.metadata["row"],
+                    "text": document.page_content,
+                    "evaluation": llm_answer,
+                }
+                output_dictionary["retrieved_documents"].append(
+                    new_document
                 )
 
             print(
