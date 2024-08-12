@@ -1,2 +1,2 @@
 search:
-	python3 source/search.py -q Shakespeare
+	python3 source/search.py
