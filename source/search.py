@@ -24,10 +24,12 @@ from langchain_ollama import OllamaLLM
 
 class Searcher:
     def __init__(self, arguments):
+        retrieved_document_count = 10
+
         documents = CSVLoader(arguments.dataset_path).load()
 
         self.bm25_retriever = BM25Retriever.from_documents(
-            documents
+            documents, k=retrieved_document_count
         )
 
         embeddings = HuggingFaceEmbeddings(show_progress=True)
@@ -46,7 +48,9 @@ class Searcher:
                 arguments.persist_directory
             )
         self.faiss_retriever = (
-            self.faiss_vectorstore.as_retriever()
+            self.faiss_vectorstore.as_retriever(
+                search_kwargs={"k": retrieved_document_count}
+            )
         )
 
         self.ensemble_retriever = EnsembleRetriever(
@@ -62,21 +66,21 @@ class Searcher:
 
     def search_lexical(
         self,
-        query_string,
+        query,
     ):
-        return self.bm25_retriever.invoke(query_string)
+        return self.bm25_retriever.invoke(query)
 
     def search_semantic(
         self,
-        query_string,
+        query,
     ):
-        return self.faiss_retriever.invoke(query_string)
+        return self.faiss_retriever.invoke(query)
 
     def search_hybrid(
         self,
-        query_string,
+        query,
     ):
-        return self.ensemble_retriever.invoke(query_string)
+        return self.ensemble_retriever.invoke(query)
 
 
 def main():
@@ -85,16 +89,16 @@ def main():
         description="Performs hybrid search with the given query",
     )
     parser.add_argument(
-        "-q",
-        "--query_string",
-        help="Query string",
-        required=True,
-    )
-    parser.add_argument(
         "-d",
         "--dataset_path",
         help="Path of the input dataset (CSV file)",
         default=os.path.join("data", "imdb_dataset.csv"),
+    )
+    parser.add_argument(
+        "-q",
+        "--query_file_path",
+        help="Path of the file that includes queries",
+        default=os.path.join("data", "queries.json"),
     )
     parser.add_argument(
         "-p",
@@ -109,6 +113,9 @@ def main():
         default=os.path.join("output"),
     )
     arguments = parser.parse_args()
+
+    with open(arguments.query_file_path, "r") as query_file:
+        queries = json.load(query_file)
 
     model = OllamaLLM(model="llama3", temperature=0)
 
@@ -128,66 +135,65 @@ def main():
             ),
             "w",
         ) as output_file:
-            output_dictionary = dict()
-            output_dictionary["query"] = arguments.query_string
-            output_dictionary["search_function"] = (
-                search_function.__name__
-            )
-            retrieved_documents = search_function(
-                arguments.query_string
-            )
-            output_dictionary["retrieved_documents"] = list()
-            for document in retrieved_documents:
-                prompt = (
-                    """For the following query and retrieved document pair,
-                    generate an evaluation score between 1 and 10 (inclusive)
-                    that shows the relevance of the document to the query.
-                    Query: """
-                    + output_dictionary["query"]
-                    + """
-                    Document: """
-                    + document.page_content
-                    + """
-                    Your answers should be in this format (without any extra text):
-                        {"score": "your score here ...", "reasoning": "your reasoning here ..." (string)}"""
-                )
-                llm_answer = model.invoke(prompt)
-                termcolor.cprint(
-                    f"LLM answer: {llm_answer}", "blue"
-                )
-                could_decode_json = False
-                while not could_decode_json:
-                    try:
-                        llm_answer_dictionary = json.loads(
-                            llm_answer
-                        )
-                        could_decode_json = True
-                    except json.decoder.JSONDecodeError as error:
-                        termcolor.cprint(
-                            "Could not decode JSON", "magenta"
-                        )
-                        prompt = (
-                            """Could not decode JSON, change this to a decodable JSON.
-                                    Do not include anything else in your answer than JSON):
-                            """
-                            + llm_answer
-                        )
-                        llm_answer = model.invoke(prompt)
-                        termcolor.cprint(
-                            f"LLM answer: {llm_answer}", "blue"
-                        )
+            query_results = list()
 
-                new_document = {
-                    "id": document.metadata["row"],
-                    "text": document.page_content,
-                    "evaluation": llm_answer,
-                }
-                output_dictionary["retrieved_documents"].append(
-                    new_document
+            for query in queries:
+                query_result = dict()
+
+                query_result["query"] = query
+                query_result["search_function"] = (
+                    search_function.__name__
                 )
+                retrieved_documents = search_function(query)
+                query_result["retrieved_documents"] = list()
+                for document in retrieved_documents:
+                    prompt = (
+                        """For the following query and retrieved document pair,
+                        generate an evaluation score between 1 and 10 (inclusive)
+                        that shows the relevance of the document to the query.
+                        Query: """
+                        + query_result["query"]
+                        + """
+                        Document: """
+                        + document.page_content
+                        + """
+                        Your answers should be in this format (without any extra text):
+                            {"score": "your score here ...", "reasoning": "your reasoning here ..." (string)}"""
+                    )
+                    llm_answer = model.invoke(prompt)
+                    could_decode_json = False
+                    while not could_decode_json:
+                        try:
+                            llm_answer_dictionary = json.loads(
+                                llm_answer
+                            )
+                            could_decode_json = True
+                        except (
+                            json.decoder.JSONDecodeError
+                        ) as error:
+                            termcolor.cprint(
+                                "Could not decode JSON", "magenta"
+                            )
+                            prompt = (
+                                """Could not decode JSON, change this to a decodable JSON.
+                                        Do not include anything else in your answer than JSON):
+                                """
+                                + llm_answer
+                            )
+                            llm_answer = model.invoke(prompt)
+
+                    new_document = {
+                        "id": document.metadata["row"],
+                        "text": document.page_content,
+                        "evaluation": json.loads(llm_answer),
+                    }
+                    query_result["retrieved_documents"].append(
+                        new_document
+                    )
+                query_results.append(query_result)
 
             print(
-                json.dumps(output_dictionary, indent=4),
+                json.dumps(query_results, indent=4),
                 file=output_file,
             )
 
