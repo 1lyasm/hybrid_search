@@ -23,6 +23,8 @@ from langchain_ollama import OllamaLLM
 
 
 class Searcher:
+    methods = ["lexical", "semantic", "hybrid"]
+
     def __init__(self, arguments):
         retrieved_document_count = 10
 
